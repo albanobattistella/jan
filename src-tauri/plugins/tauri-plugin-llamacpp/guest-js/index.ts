@@ -12,6 +12,7 @@ import {
   BestBackendResult,
   UpdateCheckResult,
   SettingUpdateResult,
+  LoadProbeResult,
 } from './types'
 
 // Helpers
@@ -154,6 +155,25 @@ export async function getDevices(
   })
 }
 
+/**
+ * Loads the backend's GPU library the way llama-server would, to recover the
+ * reason it cannot. A release build of ggml discards that error and silently
+ * falls back to CPU, so this is the only way to name the missing dependency.
+ */
+export async function probeBackendLoad(
+  backend: string,
+  version: string,
+  janDataFolder: string,
+  isWindows: boolean
+): Promise<LoadProbeResult> {
+  return await invoke('plugin:llamacpp|probe_backend_load', {
+    backend,
+    version,
+    janDataFolder,
+    isWindows,
+  })
+}
+
 export async function generateApiKey(
   modelId: string,
   apiSecret: string
@@ -184,6 +204,27 @@ export async function routerSlotsIdle(modelId?: string): Promise<boolean> {
  */
 export async function reloadRouterModels(): Promise<void> {
   return await invoke('plugin:llamacpp|reload_router_models')
+}
+
+export async function routerHealth(
+  port?: number,
+  apiKey?: string
+): Promise<boolean> {
+  return await invoke('plugin:llamacpp|router_health', { port, apiKey })
+}
+
+export async function adoptRouter(
+  backendExe: string,
+  presetPath: string,
+  modelsMax: number,
+  apiSecret: string
+): Promise<{ port: number; api_key: string; pid: number } | null> {
+  return await invoke('plugin:llamacpp|adopt_router', {
+    backendExe,
+    presetPath,
+    modelsMax,
+    apiSecret,
+  })
 }
 
 // GGUF commands
@@ -338,13 +379,34 @@ export async function checkBackendForUpdates(
 export async function removeOldBackendVersions(
   backendsDir: string,
   latestVersion: string,
-  backendType: string
+  backendType: string,
+  keepPrevious: number
 ): Promise<string[]> {
   return invoke('plugin:llamacpp|remove_old_backend_versions', {
     backendsDir,
     latestVersion,
     backendType,
+    keepPrevious,
   })
+}
+
+export async function fetchBackendChecksums(
+  version: string,
+  source: 'github' | 'cdn',
+  proxy?: object | null
+): Promise<Record<string, string>> {
+  return invoke('plugin:llamacpp|fetch_backend_checksums', {
+    version,
+    source,
+    proxy,
+  })
+}
+
+export async function verifyFileSha512(
+  path: string,
+  expected: string
+): Promise<boolean> {
+  return invoke('plugin:llamacpp|verify_file_sha512', { path, expected })
 }
 
 export async function validateBackendString(
